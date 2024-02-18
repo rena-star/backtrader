@@ -1,0 +1,49 @@
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score
+
+# Load historical price data (replace 'your_data.csv' with your dataset)
+data = pd.read_csv('your_data.csv')
+
+# Feature engineering (example: moving averages)
+data['MA5'] = data['Close'].rolling(window=5).mean()
+data['MA20'] = data['Close'].rolling(window=20).mean()
+
+# Create a binary target variable (1 for price increase, 0 for decrease)
+data['Target'] = (data['Close'].shift(-1) > data['Close']).astype(int)
+
+# Drop NaN values
+data = data.dropna()
+
+# Features and target variable
+X = data[['MA5', 'MA20']]
+y = data['Target']
+
+# Split the dataset into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Train a machine learning model (Random Forest classifier in this example)
+model = RandomForestClassifier(n_estimators=100, random_state=42)
+model.fit(X_train, y_train)
+
+# Predict on the test set
+predictions = model.predict(X_test)
+
+# Evaluate model accuracy
+accuracy = accuracy_score(y_test, predictions)
+print(f'Model Accuracy: {accuracy}')
+
+# Example trading strategy: Buy if predicted probability of price increase is above a threshold
+data['Predicted_Probability'] = model.predict_proba(X)[:, 1]
+threshold = 0.7
+data['Signal'] = (data['Predicted_Probability'] > threshold).astype(int)
+
+# Backtest the strategy (assuming constant position size)
+data['Strategy_Return'] = data['Signal'] * data['Close'].pct_change()
+
+# Calculate cumulative returns
+data['Cumulative_Return'] = (1 + data['Strategy_Return']).cumprod()
+
+# Plot cumulative returns
+data['Cumulative_Return'].plot(figsize=(10, 6), title='Cumulative Returns')
